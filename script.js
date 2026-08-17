@@ -40,11 +40,37 @@ function escaparHtml(texto) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizarNome(nome) {
+  return String(nome || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function renderizarLista() {
   contador.textContent = cadastros.length;
 
-  if (!cadastros.length) {
-    lista.innerHTML = `
+  const pesquisa = normalizarNome(
+    document.getElementById("pesquisaCadastro").value
+  );
+
+  const cadastrosOrdenados = cadastros
+    .map((pessoa, index) => ({ pessoa, index }))
+    .sort((a, b) => a.pessoa.nome.localeCompare(b.pessoa.nome, "pt-BR", { sensitivity: "base" }));
+
+  const resultados = cadastrosOrdenados.filter(({ pessoa }) =>
+    normalizarNome(pessoa.nome).includes(pesquisa)
+  );
+
+  if (!resultados.length) {
+    lista.innerHTML = pesquisa ? `
+      <div class="empty">
+        <div class="empty-icon">🔎</div>
+        <strong>Nenhum cadastro encontrado</strong>
+        <span>Não encontramos nenhum registro para "${escaparHtml(pesquisa)}".</span>
+      </div>` : `
       <div class="empty">
         <div class="empty-icon">＋</div>
         <strong>Nenhum cadastro ainda</strong>
@@ -53,15 +79,15 @@ function renderizarLista() {
     return;
   }
 
-  lista.innerHTML = cadastros.map((pessoa, index) => `
+  lista.innerHTML = resultados.map(({ pessoa, index }) => `
     <div class="person">
       <div class="person-info">
         <strong>${escaparHtml(pessoa.nome)}</strong>
         <span>${escaparHtml(pessoa.telefone || "Telefone não informado")} · ${escaparHtml(pessoa.cidade || "Cidade não informada")}</span>
       </div>
       <div class="person-actions">
-        <button class="edit-btn" type="button" data-index="${index}" title="Editar">✎</button>
-        <button class="delete-btn" type="button" data-index="${index}" title="Excluir">×</button>
+        <button class="edit-btn" type="button" data-index="${index}" title="Editar cadastro" aria-label="Editar cadastro">✎</button>
+        <button class="delete-btn" type="button" data-index="${index}" title="Excluir cadastro" aria-label="Excluir cadastro">×</button>
       </div>
     </div>
   `).join("");
@@ -121,6 +147,18 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
+  const nomeNormalizado = normalizarNome(pessoa.nome);
+  const nomeDuplicado = cadastros.some((cadastro, index) => {
+    if (indiceEditando !== null && index === indiceEditando) return false;
+    return normalizarNome(cadastro.nome) === nomeNormalizado;
+  });
+
+  if (nomeDuplicado) {
+    mostrarStatus(`Já existe um cadastro para "${pessoa.nome}".`, "error");
+    document.getElementById("nome").focus();
+    return;
+  }
+
   if (indiceEditando !== null) {
     cadastros[indiceEditando] = pessoa;
     mostrarStatus("Cadastro atualizado com sucesso.", "success");
@@ -167,6 +205,10 @@ lista.addEventListener("click", (event) => {
       mostrarStatus("Cadastro excluído.", "success");
     }
   }
+});
+
+document.getElementById("pesquisaCadastro").addEventListener("input", () => {
+  renderizarLista();
 });
 
 document.getElementById("limparTodos").addEventListener("click", () => {
@@ -484,9 +526,16 @@ document.getElementById("importarJson").addEventListener("change", async (event)
       throw new Error("Formato inválido.");
     }
 
-    const validos = dados.filter(item =>
-      item && typeof item === "object" && item.nome
-    );
+    const validos = [];
+    const nomesImportados = new Set();
+
+    for (const item of dados) {
+      if (!item || typeof item !== "object" || !item.nome) continue;
+      const nome = normalizarNome(item.nome);
+      if (nomesImportados.has(nome)) continue;
+      nomesImportados.add(nome);
+      validos.push(item);
+    }
 
     if (!validos.length) {
       throw new Error("Nenhum cadastro válido encontrado.");

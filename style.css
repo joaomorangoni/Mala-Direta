@@ -394,6 +394,30 @@ textarea {
     0 0 8px rgba(239, 68, 68, .35);
 }
 
+.pesquisa-container {
+  margin-bottom: 14px;
+}
+
+#pesquisaCadastro {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #0f151d;
+  color: var(--text);
+  outline: none;
+  transition: border-color .18s ease, background .18s ease, box-shadow .2s ease;
+}
+
+#pesquisaCadastro::placeholder { color: #667281; }
+#pesquisaCadastro:hover { border-color: #354352; background: #111923; }
+#pesquisaCadastro:focus {
+  border-color: var(--primary);
+  background: #101821;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .14), 0 0 14px rgba(59, 130, 246, .12);
+}
+#pesquisaCadastro::-webkit-search-cancel-button { cursor: pointer; filter: invert(1); }
+
 .lista {
   display: flex;
   flex-direction: column;
