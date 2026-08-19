@@ -526,25 +526,47 @@ document.getElementById("importarJson").addEventListener("change", async (event)
       throw new Error("Formato inválido.");
     }
 
-    const validos = [];
+    const nomesExistentes = new Set(cadastros.map(c => normalizarNome(c.nome)));
     const nomesImportados = new Set();
+
+    let adicionados = 0;
+    let ignorados = 0;
 
     for (const item of dados) {
       if (!item || typeof item !== "object" || !item.nome) continue;
+
       const nome = normalizarNome(item.nome);
-      if (nomesImportados.has(nome)) continue;
+
+      // ignora duplicado dentro do próprio arquivo importado
+      if (nomesImportados.has(nome)) {
+        ignorados++;
+        continue;
+      }
       nomesImportados.add(nome);
-      validos.push(item);
+
+      // ignora se já existe um cadastro com esse nome na máquina
+      if (nomesExistentes.has(nome)) {
+        ignorados++;
+        continue;
+      }
+
+      nomesExistentes.add(nome);
+      cadastros.push(item);
+      adicionados++;
     }
 
-    if (!validos.length) {
-      throw new Error("Nenhum cadastro válido encontrado.");
+    if (!adicionados) {
+      throw new Error("Nenhum cadastro novo para importar (todos já existiam ou o arquivo está vazio).");
     }
 
-    cadastros = validos;
     salvarCadastros();
     renderizarLista();
-    mostrarStatus(`${validos.length} cadastro(s) importado(s).`, "success");
+
+    const mensagem = ignorados
+      ? `${adicionados} cadastro(s) importado(s). ${ignorados} ignorado(s) por nome duplicado.`
+      : `${adicionados} cadastro(s) importado(s).`;
+
+    mostrarStatus(mensagem, "success");
   } catch (erro) {
     console.error(erro);
     mostrarStatus("Não foi possível importar esse arquivo JSON.", "error");
